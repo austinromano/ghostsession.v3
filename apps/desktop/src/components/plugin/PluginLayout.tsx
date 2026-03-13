@@ -14,17 +14,48 @@ interface Invitation {
   inviterName: string;
 }
 
+interface SamplePack {
+  id: string;
+  name: string;
+  samples: { id: string; name: string; fileId?: string }[];
+}
+
 function ProjectListSidebar({
   projects,
   selectedId,
   onSelect,
   onCreate,
+  samplePacks,
+  selectedPackId,
+  onSelectPack,
+  onCreatePack,
+  friends,
 }: {
   projects: { id: string; name: string }[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onCreate: () => void;
+  samplePacks: SamplePack[];
+  selectedPackId: string | null;
+  onSelectPack: (id: string) => void;
+  onCreatePack: () => void;
+  friends: { id: string; displayName: string; avatarUrl: string | null }[];
 }) {
+  const [favoritesOpen, setFavoritesOpen] = useState(true);
+  const [projectsOpen, setProjectsOpen] = useState(true);
+  const [packsOpen, setPacksOpen] = useState(true);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('ghost_favorites') || '[]')); } catch { return new Set(); }
+  });
+  const toggleFavorite = (id: string) => {
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      localStorage.setItem('ghost_favorites', JSON.stringify([...next]));
+      return next;
+    });
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Ghost Session branding */}
@@ -37,63 +68,222 @@ function ProjectListSidebar({
         <span className="text-[15px] font-extrabold tracking-widest uppercase" style={{ background: 'linear-gradient(135deg, #00FFC8, #00B4D8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Ghost Session</span>
       </div>
 
-      {/* Projects header */}
-      <div className="h-10 px-3 flex items-center justify-between">
-        <span className="text-[11px] font-semibold text-ghost-text-secondary uppercase tracking-wide">
-          Projects
-        </span>
-        <button
-          onClick={onCreate}
-          className="w-5 h-5 flex items-center justify-center rounded text-ghost-text-muted hover:text-ghost-text-primary text-sm transition-colors"
-        >
-          +
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto px-2 pt-2 space-y-0.5">
-        {projects.map((p) => (
+      <FriendsPanel friends={friends} />
+
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Favorites dropdown */}
+        <div>
           <button
-            key={p.id}
-            onClick={() => onSelect(p.id)}
-            className={`w-full text-left px-2 py-1.5 text-[15px] rounded transition-colors ${
-              selectedId === p.id
-                ? 'bg-ghost-surface-hover text-white font-medium'
-                : 'text-ghost-text-muted hover:bg-ghost-surface-hover/50 hover:text-ghost-text-secondary'
-            }`}
+            onClick={() => setFavoritesOpen((v) => !v)}
+            className="h-9 px-3 flex items-center justify-between w-full hover:bg-ghost-surface-hover/30 transition-colors"
           >
-            <span className="flex items-center gap-2">
-              <span className="text-ghost-text-muted text-lg">#</span>
-              {p.name}
+            <span className="flex items-center gap-1.5">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" className={`text-ghost-text-muted transition-transform ${favoritesOpen ? 'rotate-90' : ''}`}>
+                <polygon points="2,0 8,5 2,10" />
+              </svg>
+              <span className="text-[13px] font-bold text-ghost-text-secondary uppercase tracking-widest">
+                Favorites
+              </span>
             </span>
           </button>
-        ))}
+          {favoritesOpen && (
+            <div className="px-2 pb-1.5 space-y-0.5">
+              {projects.filter((p) => favoriteIds.has(p.id)).map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => onSelect(p.id)}
+                  className={`w-full text-left px-2 py-1.5 text-[15px] rounded-md transition-colors ${
+                    selectedId === p.id && !selectedPackId
+                      ? 'bg-ghost-surface-hover text-white font-semibold'
+                      : 'text-ghost-text-muted font-medium hover:bg-ghost-surface-hover/50 hover:text-ghost-text-secondary'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ghost-text-muted shrink-0">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    {p.name}
+                  </span>
+                </button>
+              ))}
+              {samplePacks.filter((sp) => favoriteIds.has(sp.id)).map((sp) => (
+                <button
+                  key={sp.id}
+                  onClick={() => onSelectPack(sp.id)}
+                  className={`w-full text-left px-2 py-1.5 text-[15px] rounded-md transition-colors ${
+                    selectedPackId === sp.id
+                      ? 'bg-ghost-surface-hover text-white font-semibold'
+                      : 'text-ghost-text-muted font-medium hover:bg-ghost-surface-hover/50 hover:text-ghost-text-secondary'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-ghost-purple">
+                      <path d="M9 18V5l12-2v13" />
+                      <circle cx="6" cy="18" r="3" />
+                      <circle cx="18" cy="16" r="3" />
+                    </svg>
+                    {sp.name}
+                  </span>
+                </button>
+              ))}
+              {projects.filter((p) => favoriteIds.has(p.id)).length === 0 && samplePacks.filter((sp) => favoriteIds.has(sp.id)).length === 0 && (
+                <p className="px-2 py-1.5 text-[13px] text-ghost-text-muted italic">No favorites yet</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Projects dropdown */}
+        <div>
+          <button
+            onClick={() => setProjectsOpen((v) => !v)}
+            className="h-9 px-3 flex items-center justify-between w-full hover:bg-ghost-surface-hover/30 transition-colors"
+          >
+            <span className="flex items-center gap-1.5">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" className={`text-ghost-text-muted transition-transform ${projectsOpen ? 'rotate-90' : ''}`}>
+                <polygon points="2,0 8,5 2,10" />
+              </svg>
+              <span className="text-[13px] font-bold text-ghost-text-secondary uppercase tracking-widest">
+                Projects
+              </span>
+            </span>
+            <span
+              onClick={(e) => { e.stopPropagation(); onCreate(); }}
+              className="w-5 h-5 flex items-center justify-center rounded text-ghost-text-muted hover:text-ghost-text-primary text-sm transition-colors"
+            >
+              +
+            </span>
+          </button>
+          {projectsOpen && (
+            <div className="px-2 pb-1.5 space-y-0.5">
+              {projects.map((p) => (
+                <div
+                  key={p.id}
+                  className={`group flex items-center w-full px-2 py-1.5 text-[15px] rounded-md transition-colors cursor-pointer ${
+                    selectedId === p.id && !selectedPackId
+                      ? 'bg-ghost-surface-hover text-white font-semibold'
+                      : 'text-ghost-text-muted font-medium hover:bg-ghost-surface-hover/50 hover:text-ghost-text-secondary'
+                  }`}
+                  onClick={() => onSelect(p.id)}
+                >
+                  <span className="flex items-center gap-2 flex-1 min-w-0">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ghost-text-muted shrink-0">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <span className="truncate">{p.name}</span>
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleFavorite(p.id); }}
+                    className={`shrink-0 ml-1 transition-colors ${favoriteIds.has(p.id) ? 'text-yellow-400' : 'text-ghost-text-muted/40 hover:text-yellow-400'}`}
+                    title={favoriteIds.has(p.id) ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill={favoriteIds.has(p.id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Sample Packs dropdown */}
+        <div>
+          <button
+            onClick={() => setPacksOpen((v) => !v)}
+            className="h-9 px-3 flex items-center justify-between w-full hover:bg-ghost-surface-hover/30 transition-colors"
+          >
+            <span className="flex items-center gap-1.5">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" className={`text-ghost-text-muted transition-transform ${packsOpen ? 'rotate-90' : ''}`}>
+                <polygon points="2,0 8,5 2,10" />
+              </svg>
+              <span className="text-[13px] font-bold text-ghost-text-secondary uppercase tracking-widest">
+                Sample Packs
+              </span>
+            </span>
+            <span
+              onClick={(e) => { e.stopPropagation(); onCreatePack(); }}
+              className="w-5 h-5 flex items-center justify-center rounded text-ghost-text-muted hover:text-ghost-text-primary text-sm transition-colors"
+            >
+              +
+            </span>
+          </button>
+          {packsOpen && (
+            <div className="px-2 pb-1.5 space-y-0.5">
+              {samplePacks.length === 0 && (
+                <p className="text-[11px] text-ghost-text-muted italic px-2 py-1">No packs yet</p>
+              )}
+              {samplePacks.map((sp) => (
+                <div
+                  key={sp.id}
+                  onClick={() => onSelectPack(sp.id)}
+                  className={`group flex items-center w-full px-2 py-1.5 text-[15px] rounded-md transition-colors cursor-pointer ${
+                    selectedPackId === sp.id
+                      ? 'bg-ghost-surface-hover text-white font-semibold'
+                      : 'text-ghost-text-muted font-medium hover:bg-ghost-surface-hover/50 hover:text-ghost-text-secondary'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 flex-1 min-w-0">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-ghost-purple">
+                      <path d="M9 18V5l12-2v13" />
+                      <circle cx="6" cy="18" r="3" />
+                      <circle cx="18" cy="16" r="3" />
+                    </svg>
+                    <span className="truncate">{sp.name}</span>
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleFavorite(sp.id); }}
+                    className={`shrink-0 ml-1 transition-colors ${favoriteIds.has(sp.id) ? 'text-yellow-400' : 'text-ghost-text-muted/40 hover:text-yellow-400'}`}
+                    title={favoriteIds.has(sp.id) ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill={favoriteIds.has(sp.id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 function FriendsPanel({ friends }: { friends: { id: string; displayName: string; avatarUrl: string | null }[] }) {
+  const [open, setOpen] = useState(true);
   return (
     <div className="shrink-0">
-      <div className="px-3 py-2 flex items-center justify-between">
-        <span className="text-[11px] font-semibold text-ghost-text-muted uppercase tracking-wider">
-          Friends — {friends.length}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="h-9 px-3 flex items-center justify-between w-full hover:bg-ghost-surface-hover/30 transition-colors"
+      >
+        <span className="flex items-center gap-1.5">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" className={`text-ghost-text-muted transition-transform ${open ? 'rotate-90' : ''}`}>
+            <polygon points="2,0 8,5 2,10" />
+          </svg>
+          <span className="text-[13px] font-bold text-ghost-text-secondary uppercase tracking-widest">
+            Friends — {friends.length}
+          </span>
         </span>
-      </div>
-      <div className="px-2 space-y-px">
-        {friends.length === 0 ? (
-          <p className="text-[13px] text-ghost-text-muted px-2 py-3 text-center italic">No friends yet</p>
-        ) : (
-          friends.map((f) => (
-            <div key={f.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-ghost-surface-hover cursor-pointer group transition-colors">
-              <div className="relative">
-                <Avatar name={f.displayName} src={f.avatarUrl} size="sm" />
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-ghost-text-muted/40 border-2 border-ghost-surface" />
+      </button>
+      {open && (
+        <div className="px-2 pb-1.5 space-y-px">
+          {friends.length === 0 ? (
+            <p className="text-[12px] text-ghost-text-muted px-2 py-3 text-center italic">No friends yet</p>
+          ) : (
+            friends.map((f) => (
+              <div key={f.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-ghost-surface-hover cursor-pointer group transition-colors">
+                <div className="relative">
+                  <Avatar name={f.displayName} src={f.avatarUrl} size="sm" />
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-ghost-text-muted/40 border-2 border-ghost-surface" />
+                </div>
+                <span className="text-[15px] font-medium text-ghost-text-muted group-hover:text-ghost-text-primary flex-1 truncate transition-colors">{f.displayName}</span>
               </div>
-              <span className="text-[13px] text-ghost-text-muted group-hover:text-ghost-text-primary flex-1 truncate transition-colors">{f.displayName}</span>
-            </div>
-          ))
-        )}
-      </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -533,12 +723,23 @@ function StemRow({
     }
   };
 
+  const dragTriggeredRef = useRef(false);
+
   const handleDragStart = (e: React.DragEvent) => {
     if (!downloadUrl) return;
 
     if (isPlugin) {
-      // In plugin mode, cancel the browser drag and trigger JUCE native drag
-      e.preventDefault();
+      // Kill the browser drag completely — clear all data, set to none
+      e.dataTransfer.clearData();
+      e.dataTransfer.effectAllowed = 'none';
+      e.dataTransfer.dropEffect = 'none';
+
+      // Prevent double-trigger
+      if (dragTriggeredRef.current) return;
+      dragTriggeredRef.current = true;
+      setTimeout(() => { dragTriggeredRef.current = false; }, 2000);
+
+      // Trigger JUCE native drag (the only drag Ableton should see)
       const ghostUrl = `ghost://drag-to-daw?url=${encodeURIComponent(downloadUrl)}&fileName=${encodeURIComponent(name + '.wav')}`;
       window.location.href = ghostUrl;
       return;
@@ -725,6 +926,219 @@ function TransportBar() {
   );
 }
 
+function SamplePackContentView({
+  pack,
+  onRenamePack,
+  onDeletePack,
+  onRemoveSample,
+  onRefresh,
+  members,
+  onInvite,
+}: {
+  pack: SamplePack & { items?: any[] };
+  onRenamePack: (id: string, name: string) => void;
+  onDeletePack: (id: string) => void;
+  onRemoveSample: (packId: string, itemId: string) => void;
+  onRefresh: (id: string) => void;
+  members: { userId: string; displayName: string; role: string; avatarUrl?: string | null }[];
+  onInvite: () => void;
+}) {
+  const items = pack.items || [];
+  const [packDragOver, setPackDragOver] = useState(false);
+  const [packUploading, setPackUploading] = useState(false);
+  const [showPackMenu, setShowPackMenu] = useState(false);
+  const packMenuRef = useRef<HTMLDivElement>(null);
+  const [packStatus, setPackStatus] = useState('');
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (packMenuRef.current && !packMenuRef.current.contains(e.target as Node)) {
+        setShowPackMenu(false);
+      }
+    };
+    if (showPackMenu) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPackMenu]);
+
+  const handlePackDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setPackDragOver(false);
+    const droppedFiles = Array.from(e.dataTransfer.files).filter((f) =>
+      f.type.startsWith('audio/') || f.name.match(/\.(wav|mp3|flac|aiff|ogg|m4a|aac)$/i)
+    );
+    if (droppedFiles.length === 0) {
+      setPackStatus('No audio files detected');
+      setTimeout(() => setPackStatus(''), 2000);
+      return;
+    }
+    setPackUploading(true);
+    setPackStatus(`Uploading ${droppedFiles.length} file(s)...`);
+    try {
+      for (const file of droppedFiles) {
+        const { fileId } = await api.uploadFile(pack.id, file);
+        const sampleName = file.name.replace(/\.[^.]+$/, '');
+        await api.addSamplePackItem(pack.id, { name: sampleName, fileId });
+      }
+      setPackStatus(`Added ${droppedFiles.length} sample(s)`);
+      onRefresh(pack.id);
+    } catch (err: any) {
+      setPackStatus(err.message || 'Upload failed');
+    } finally {
+      setPackUploading(false);
+      setTimeout(() => setPackStatus(''), 3000);
+    }
+  };
+
+  const handlePackBrowse = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = 'audio/*,.wav,.mp3,.flac,.aiff,.ogg,.m4a,.aac';
+    input.onchange = () => {
+      if (input.files && input.files.length > 0) {
+        const fakeEvent = {
+          preventDefault: () => {},
+          dataTransfer: { files: input.files },
+        } as unknown as React.DragEvent;
+        handlePackDrop(fakeEvent);
+      }
+    };
+    input.click();
+  };
+
+  return (
+    <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 overflow-y-auto px-3 pt-3 pb-0">
+        {/* Pack info bar */}
+        <div className="mb-3">
+          <div className="flex items-center gap-4 bg-ghost-surface/80 rounded-xl px-4 py-2.5">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5865F2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            <input
+              className="text-[15px] font-bold text-white bg-transparent border-none outline-none hover:bg-ghost-surface-hover px-2 py-1 rounded-lg transition-colors flex-1 min-w-0"
+              value={pack.name}
+              onChange={(e) => onRenamePack(pack.id, e.target.value)}
+            />
+            <span className="text-[11px] text-ghost-text-muted">{items.length} sample{items.length !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+
+        {/* Collaborators bar */}
+        {(() => {
+          const { user } = useAuthStore.getState();
+          const displayMembers = members.length > 0 ? members : user ? [{ userId: user.id, displayName: user.displayName, role: 'owner' }] : [];
+          return displayMembers.length > 0 && (
+            <div className="mb-3">
+              <div className="flex items-center gap-4 bg-ghost-surface/80 rounded-xl px-4 py-2.5">
+                <div className="flex items-center -space-x-2.5">
+                  {[...displayMembers].sort((a: any, b: any) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : 0)).map((m: any) => (
+                    <div key={m.userId} className="relative group cursor-pointer transition-transform hover:scale-110 hover:z-10" title={m.displayName}>
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold shadow-lg ${
+                        m.role === 'owner' ? 'bg-ghost-host-gold text-black' : 'bg-ghost-green text-black'
+                      }`} style={{ border: '3px solid #0F0F18' }}>
+                        {m.displayName?.charAt(0)?.toUpperCase() || '?'}
+                      </div>
+                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-ghost-online-green" style={{ border: '2.5px solid #0F0F18' }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {[...displayMembers].sort((a: any, b: any) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : 0)).map((m: any, i: number) => (
+                      <span key={m.userId} className="flex items-center gap-1">
+                        <span className={`text-[13px] ${m.role === 'owner' ? 'font-bold text-ghost-host-gold' : 'font-medium text-ghost-text-primary'}`}>{m.displayName}</span>
+                        {m.role === 'owner' && <span className="text-[9px] font-bold uppercase tracking-wider text-ghost-host-gold/70 bg-ghost-host-gold/10 px-1.5 py-px rounded">host</span>}
+                        {i < displayMembers.length - 1 && <span className="text-ghost-text-muted/40 mx-0.5">/</span>}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-ghost-online-green animate-pulse" />
+                    <span className="text-[13px] text-ghost-text-muted">{displayMembers.length} collaborator{displayMembers.length !== 1 ? 's' : ''} online</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={onInvite}
+                  className="shrink-0 px-4 py-1.5 text-[13px] font-bold bg-ghost-green text-black rounded-lg hover:bg-ghost-green/85 transition-colors shadow-[0_0_12px_rgba(0,255,200,0.25)]"
+                >
+                  Invite
+                </button>
+
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Samples drop zone */}
+        <div
+          onDragOver={(e) => { e.preventDefault(); setPackDragOver(true); }}
+          onDragLeave={() => setPackDragOver(false)}
+          onDrop={handlePackDrop}
+          className={`bg-ghost-surface rounded-lg overflow-hidden transition-colors border-2 border-dashed ${
+            packDragOver ? 'border-ghost-green' : 'border-ghost-text-muted/30'
+          }`}
+        >
+          <div className="flex items-center gap-3 px-3 py-2">
+            <button className="w-7 h-7 rounded-full border border-ghost-border flex items-center justify-center text-ghost-text-secondary hover:text-ghost-green hover:border-ghost-green transition-colors">
+              <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor"><polygon points="0,0 10,6 0,12" /></svg>
+            </button>
+            <span className="text-xs font-bold text-ghost-text-muted uppercase tracking-wider">Samples</span>
+            <div className="flex-1" />
+          </div>
+          <div className={`h-[80px] relative overflow-hidden rounded-b-lg transition-colors ${packDragOver ? 'bg-ghost-green/5' : 'bg-ghost-bg'}`}>
+            <div className="absolute inset-0 opacity-15 pointer-events-none">
+              <Waveform seed="samplepack-demo-placeholder" height={80} />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center gap-4 px-6">
+              {packUploading ? (
+                <span className="text-sm text-ghost-green animate-pulse">{packStatus}</span>
+              ) : packStatus ? (
+                <span className="text-sm text-ghost-green">{packStatus}</span>
+              ) : (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={packDragOver ? '#00FFC8' : '#ffffff'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <span className={`text-sm font-semibold ${packDragOver ? 'text-ghost-green' : 'text-white'}`}>Drop your samples here</span>
+                  <div className="flex-1" />
+                  <button
+                    onClick={handlePackBrowse}
+                    className="px-3 py-1 text-xs font-semibold bg-ghost-surface-light border border-ghost-text-muted/40 rounded-md text-white hover:text-ghost-green hover:border-ghost-green transition-colors shrink-0"
+                  >
+                    + Add File
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Sample rows */}
+        <div className="space-y-1.5 mt-1.5">
+          {items.map((sample: any) => (
+            <StemRow
+              key={sample.id}
+              trackId={sample.id}
+              name={sample.name}
+              type="audio"
+              fileId={sample.fileId}
+              projectId={pack.id}
+              onDelete={() => onRemoveSample(pack.id, sample.id)}
+              onRename={() => {}}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DropZone({ projectId, onFilesAdded }: { projectId: string; onFilesAdded: () => void }) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -839,19 +1253,56 @@ export default function PluginLayout() {
   const [showSettings, setShowSettings] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [showFriendSearch, setShowFriendSearch] = useState(false);
+  const [friendSearchQuery, setFriendSearchQuery] = useState('');
+  const [friendSearchResults, setFriendSearchResults] = useState<{ id: string; displayName: string; email: string; avatarUrl: string | null }[]>([]);
+  const friendSearchRef = useRef<HTMLDivElement>(null);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [friends, setFriends] = useState<{ id: string; displayName: string; avatarUrl: string | null }[]>([]);
+  const [samplePacks, setSamplePacks] = useState<SamplePack[]>([]);
+  const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
+  const [selectedPack, setSelectedPack] = useState<(SamplePack & { items?: any[] }) | null>(null);
   const fullMixTracks = currentProject?.tracks.filter((t: any) => t.type === 'fullmix') || [];
   const [editingField, setEditingField] = useState<'name' | 'tempo' | 'key' | 'genre' | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [showProjectMenu, setShowProjectMenu] = useState(false);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
+
+  const fetchSamplePacks = async () => {
+    try {
+      const packs = await api.listSamplePacks();
+      setSamplePacks(packs.map((p: any) => ({ id: p.id, name: p.name, samples: [] })));
+    } catch {}
+  };
 
   useEffect(() => {
     fetchProjects();
     fetchInvitations();
+    fetchSamplePacks();
     api.listUsers().then(setFriends).catch(() => {});
     const interval = setInterval(fetchInvitations, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Friend search — debounced query against user list
+  useEffect(() => {
+    if (!friendSearchQuery.trim()) { setFriendSearchResults([]); return; }
+    const q = friendSearchQuery.toLowerCase();
+    const matches = friends.filter(
+      (f) => f.displayName.toLowerCase().includes(q) || (f as any).email?.toLowerCase().includes(q)
+    );
+    if (matches.length > 0) { setFriendSearchResults(matches as any); return; }
+    // Fallback: search all users from API
+    const timer = setTimeout(() => {
+      api.listUsers().then((users) => {
+        const filtered = users.filter(
+          (u) => u.displayName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+        );
+        setFriendSearchResults(filtered);
+      }).catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [friendSearchQuery, friends]);
 
   // Auto-select first project
   useEffect(() => {
@@ -865,14 +1316,93 @@ export default function PluginLayout() {
   const selectProject = (id: string) => {
     if (selectedProjectId) { leave(); audioCleanup(); }
     setSelectedProjectId(id);
+    setSelectedPackId(null);
     fetchProject(id);
     join(id);
+  };
+
+  // Close project menu on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (projectMenuRef.current && !projectMenuRef.current.contains(e.target as Node)) {
+        setShowProjectMenu(false);
+      }
+    };
+    if (showProjectMenu) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showProjectMenu]);
+
+  const handleDeleteProject = async () => {
+    if (!selectedProjectId) return;
+    try {
+      await api.deleteProject(selectedProjectId);
+      setSelectedProjectId(null);
+      setShowProjectMenu(false);
+      fetchProjects();
+    } catch {}
+  };
+
+  const handleShareProject = () => {
+    if (!selectedProjectId) return;
+    setShowProjectMenu(false);
+    setShowInvite(true);
   };
 
   const handleCreate = async () => {
     const p = await createProject({ name: 'New Project', tempo: 140, key: 'C' });
     await fetchProjects();
     selectProject(p.id);
+  };
+
+  const handleCreatePack = async () => {
+    try {
+      const pack = await api.createSamplePack({ name: 'New Pack' });
+      await fetchSamplePacks();
+      setSelectedPackId(pack.id);
+      setSelectedProjectId(null);
+      fetchPackDetail(pack.id);
+    } catch {}
+  };
+
+  const fetchPackDetail = async (id: string) => {
+    try {
+      const detail = await api.getSamplePack(id);
+      setSelectedPack(detail);
+    } catch {}
+  };
+
+  const handleSelectPack = (id: string) => {
+    setSelectedPackId(id);
+    setSelectedProjectId(null);
+    if (selectedProjectId) { leave(); audioCleanup(); }
+    fetchPackDetail(id);
+  };
+
+  const handleRenamePack = async (id: string, name: string) => {
+    setSamplePacks((prev) => prev.map((sp) => sp.id === id ? { ...sp, name } : sp));
+    try { await api.updateSamplePack(id, { name }); } catch {}
+  };
+
+  const handleDeletePack = async (id: string) => {
+    try {
+      await api.deleteSamplePack(id);
+      setSamplePacks((prev) => prev.filter((sp) => sp.id !== id));
+      if (selectedPackId === id) { setSelectedPackId(null); setSelectedPack(null); }
+    } catch {}
+  };
+
+  const handleAddSampleToPack = async (packId: string, sample: { name: string; fileId?: string }) => {
+    try {
+      await api.addSamplePackItem(packId, { name: sample.name, fileId: sample.fileId });
+      fetchPackDetail(packId);
+    } catch {}
+  };
+
+  const handleRemoveSampleFromPack = async (packId: string, itemId: string) => {
+    try {
+      await api.removeSamplePackItem(packId, itemId);
+      fetchPackDetail(packId);
+    } catch {}
   };
 
   const fetchInvitations = async () => {
@@ -911,7 +1441,7 @@ export default function PluginLayout() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-ghost-surface-light relative">
-      {/* Left sidebar: project list + collaborators */}
+      {/* Left sidebar */}
       <div className="w-[220px] shrink-0 bg-ghost-surface flex flex-col">
         <div className="flex-1 min-h-0 flex flex-col">
           <ProjectListSidebar
@@ -919,6 +1449,11 @@ export default function PluginLayout() {
             selectedId={selectedProjectId}
             onSelect={selectProject}
             onCreate={handleCreate}
+            samplePacks={samplePacks}
+            selectedPackId={selectedPackId}
+            onSelectPack={handleSelectPack}
+            onCreatePack={handleCreatePack}
+            friends={friends}
           />
         </div>
       </div>
@@ -926,179 +1461,101 @@ export default function PluginLayout() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header bar */}
-        <div className="h-14 bg-ghost-surface shadow-[0_1px_0_rgba(0,0,0,0.4)] flex items-center px-5 gap-6 shrink-0">
-          {currentProject ? (
-            <>
-              {/* Project name */}
-              {editingField === 'name' ? (
-                <input
-                  autoFocus
-                  className="text-lg font-bold text-white bg-ghost-bg border border-ghost-green/60 rounded-lg px-3 py-1.5 outline-none focus:border-ghost-green w-52"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={() => {
-                    if (editValue.trim() && editValue !== currentProject.name) {
-                      updateProject(currentProject.id, { name: editValue.trim() });
-                    }
-                    setEditingField(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                    if (e.key === 'Escape') setEditingField(null);
-                  }}
-                />
-              ) : (
-                <h2
-                  className="group flex items-center gap-2 text-lg font-bold text-white truncate cursor-pointer hover:text-ghost-green transition-colors"
-                  onClick={() => { setEditingField('name'); setEditValue(currentProject.name); }}
-                >
-                  {currentProject.name}
-                  <svg className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        <div className="bg-ghost-surface shadow-[0_1px_0_rgba(0,0,0,0.4)] flex items-stretch shrink-0 relative">
+          <div className="flex-1 flex items-center pl-0 pr-4">
+            {/* Friend search bar — expands full width of header */}
+            {showFriendSearch && (
+              <div ref={friendSearchRef} className="flex-1 flex items-center gap-2">
+                <div className="relative flex-1">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-ghost-text-muted/50 pointer-events-none">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
                   </svg>
-                </h2>
-              )}
-
-              {/* Divider */}
-              <div className="w-px h-6 bg-ghost-border shrink-0" />
-
-              {/* BPM readout */}
-              <div
-                className="flex items-center gap-2 cursor-pointer group shrink-0"
-                onClick={() => { if (editingField !== 'tempo') { setEditingField('tempo'); setEditValue(String(currentProject.tempo || 120)); } }}
-              >
-                <span className="text-[11px] font-semibold text-ghost-text-muted uppercase tracking-wider">BPM</span>
-                {editingField === 'tempo' ? (
                   <input
                     autoFocus
-                    type="number"
-                    className="text-base font-bold text-ghost-green bg-ghost-bg border border-ghost-green/50 rounded-lg px-2 py-1 outline-none w-14 text-center"
-                    style={{ fontFamily: "'Consolas', monospace" }}
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={() => {
-                      const val = parseInt(editValue);
-                      if (val > 0 && val !== currentProject.tempo) {
-                        updateProject(currentProject.id, { tempo: val });
-                      }
-                      setEditingField(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                      if (e.key === 'Escape') setEditingField(null);
-                    }}
+                    type="text"
+                    value={friendSearchQuery}
+                    onChange={(e) => setFriendSearchQuery(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') { setShowFriendSearch(false); setFriendSearchQuery(''); } }}
+                    placeholder="Search by name or email..."
+                    className="w-full h-9 pl-9 pr-3 rounded-lg bg-ghost-surface-hover border border-ghost-border text-[13px] text-ghost-text-secondary placeholder:text-ghost-text-secondary focus:outline-none focus:border-ghost-border transition-all"
                   />
-                ) : (
-                  <span
-                    className="text-base font-bold text-white group-hover:text-ghost-green transition-colors"
-                    style={{ fontFamily: "'Consolas', monospace" }}
-                  >
-                    {currentProject.tempo || 120}
-                  </span>
-                )}
+                  {/* Search results dropdown */}
+                  {friendSearchQuery.trim() && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-ghost-surface border border-ghost-border rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
+                      {friendSearchResults.length === 0 ? (
+                        <p className="px-3 py-2.5 text-[13px] text-ghost-text-muted">No users found</p>
+                      ) : (
+                        friendSearchResults.map((u) => (
+                          <button
+                            key={u.id}
+                            onClick={() => { setShowFriendSearch(false); setFriendSearchQuery(''); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-ghost-surface-hover transition-colors"
+                          >
+                            <div className="w-7 h-7 rounded-full bg-ghost-purple/30 flex items-center justify-center text-[11px] font-bold text-ghost-purple shrink-0">
+                              {u.avatarUrl ? (
+                                <img src={u.avatarUrl} className="w-7 h-7 rounded-full object-cover" />
+                              ) : (
+                                u.displayName.charAt(0).toUpperCase()
+                              )}
+                            </div>
+                            <div className="flex flex-col items-start min-w-0">
+                              <span className="text-[13px] text-ghost-text-primary font-medium truncate">{u.displayName}</span>
+                              <span className="text-[11px] text-ghost-text-muted truncate">{u.email}</span>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setShowFriendSearch(false); setFriendSearchQuery(''); }}
+                  className="text-ghost-text-muted hover:text-white transition-colors shrink-0"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
               </div>
+            )}
+          </div>
 
-              {/* Divider */}
-              <div className="w-px h-6 bg-ghost-border shrink-0" />
+          {/* Right section aligned with chat panel */}
+          <div className="w-60 shrink-0 border-l border-ghost-border flex items-center justify-center px-3 py-3 gap-3">
+            {/* Add Friend button */}
+            <button
+              onClick={() => { setShowFriendSearch(!showFriendSearch); setFriendSearchQuery(''); }}
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-semibold text-[13px] bg-ghost-green text-black hover:bg-ghost-green/85 transition-colors shadow-[0_0_12px_rgba(0,255,200,0.25)]"
+              title="Add Friend"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add Friend
+            </button>
 
-              {/* Key readout */}
-              <div
-                className="flex items-center gap-2 cursor-pointer group shrink-0"
-                onClick={() => { if (editingField !== 'key') { setEditingField('key'); setEditValue(currentProject.key || 'C'); } }}
-              >
-                <span className="text-[11px] font-semibold text-ghost-text-muted uppercase tracking-wider">KEY</span>
-                {editingField === 'key' ? (
-                  <select
-                    autoFocus
-                    className="text-base font-bold text-ghost-green bg-ghost-bg border border-ghost-green/50 rounded-lg px-2 py-1 outline-none"
-                    style={{ fontFamily: "'Consolas', monospace" }}
-                    value={editValue}
-                    onChange={(e) => {
-                      setEditValue(e.target.value);
-                      if (e.target.value !== currentProject.key) {
-                        updateProject(currentProject.id, { key: e.target.value });
-                      }
-                      setEditingField(null);
-                    }}
-                    onBlur={() => setEditingField(null)}
-                  >
-                    {['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B',
-                      'Cm', 'C#m', 'Dm', 'D#m', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'A#m', 'Bm',
-                    ].map((k) => (
-                      <option key={k} value={k}>{k}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <span
-                    className="text-base font-bold text-white group-hover:text-ghost-green transition-colors"
-                    style={{ fontFamily: "'Consolas', monospace" }}
-                  >
-                    {currentProject.key || 'C'}
-                  </span>
-                )}
-              </div>
+            {/* Bell icon */}
+            <button
+              onClick={() => { setShowNotifs(!showNotifs); setShowSettings(false); }}
+              className="text-ghost-text-secondary hover:text-ghost-purple transition-colors shrink-0"
+            >
+              <BellIcon count={invitations.length} />
+            </button>
 
-              {/* Divider */}
-              <div className="w-px h-6 bg-ghost-border shrink-0" />
-
-              {/* Genre readout */}
-              <div
-                className="flex items-center gap-2 cursor-pointer group shrink-0"
-                onClick={() => { if (editingField !== 'genre') { setEditingField('genre'); setEditValue((currentProject as any).genre || ''); } }}
-              >
-                <span className="text-[11px] font-semibold text-ghost-text-muted uppercase tracking-wider">GENRE</span>
-                {editingField === 'genre' ? (
-                  <input
-                    autoFocus
-                    className="text-base font-bold text-ghost-green bg-ghost-bg border border-ghost-green/50 rounded-lg px-2 py-1 outline-none w-28"
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={() => {
-                      if (editValue !== ((currentProject as any).genre || '')) {
-                        updateProject(currentProject.id, { genre: editValue.trim() });
-                      }
-                      setEditingField(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                      if (e.key === 'Escape') setEditingField(null);
-                    }}
-                    placeholder="Hip-Hop, Trap..."
-                  />
-                ) : (
-                  <span
-                    className="text-base font-bold text-white group-hover:text-ghost-green transition-colors uppercase"
-                  >
-                    {(currentProject as any).genre || '—'}
-                  </span>
-                )}
-              </div>
-
-              {/* Spacer */}
-              <div className="flex-1" />
-            </>
-          ) : (
-            <span className="text-sm text-ghost-text-muted italic flex-1">Select a project</span>
-          )}
-
-          {/* Bell icon */}
-          <button
-            onClick={() => { setShowNotifs(!showNotifs); setShowSettings(false); }}
-            className="text-ghost-text-secondary hover:text-ghost-purple transition-colors shrink-0"
-          >
-            <BellIcon count={invitations.length} />
-          </button>
-
-          {/* Settings gear */}
-          <button
-            onClick={() => { setShowSettings(!showSettings); setShowNotifs(false); }}
-            className="text-ghost-text-secondary hover:text-ghost-purple transition-colors shrink-0"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
+            {/* Settings gear */}
+            <button
+              onClick={() => { setShowSettings(!showSettings); setShowNotifs(false); }}
+              className="text-ghost-text-secondary hover:text-ghost-purple transition-colors shrink-0"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Popups */}
@@ -1119,13 +1576,32 @@ export default function PluginLayout() {
         {showInvite && selectedProjectId && (
           <InviteModal open={showInvite} onClose={() => setShowInvite(false)} projectId={selectedProjectId} />
         )}
+        {showInvite && selectedPackId && !selectedProjectId && (
+          <InviteModal open={showInvite} onClose={() => setShowInvite(false)} projectId={selectedPackId} />
+        )}
 
         {/* Arrangement content + chat */}
         <div className="flex-1 flex min-h-0">
-          {currentProject ? (
+          {selectedProjectId && currentProject ? (
             <>
               <div className="flex-1 flex flex-col min-w-0">
               <div className="flex-1 overflow-y-auto px-3 pt-3 pb-0">
+                {/* Project info bar */}
+                <div className="mb-3">
+                  <div className="flex items-center gap-4 bg-ghost-surface/80 rounded-xl px-4 py-2.5">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00FFC8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <span className="text-[15px] font-bold text-white truncate">{currentProject.name}</span>
+                    <div className="flex-1" />
+                    <span className="text-[11px] text-ghost-text-muted uppercase tracking-wider font-semibold">BPM</span>
+                    <span className="text-[13px] font-bold text-white" style={{ fontFamily: "'Consolas', monospace" }}>{currentProject.tempo || 120}</span>
+                    <div className="w-px h-4 bg-ghost-border" />
+                    <span className="text-[11px] text-ghost-text-muted uppercase tracking-wider font-semibold">Key</span>
+                    <span className="text-[13px] font-bold text-white" style={{ fontFamily: "'Consolas', monospace" }}>{currentProject.key || 'C'}</span>
+                  </div>
+                </div>
+
                 {/* Collaborators bar */}
                 <div className="mb-3">
                 <div className="flex items-center gap-4 bg-ghost-surface/80 rounded-xl px-4 py-2.5">
@@ -1140,16 +1616,6 @@ export default function PluginLayout() {
                         <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-ghost-online-green" style={{ border: '2.5px solid #0F0F18' }} />
                       </div>
                     ))}
-                    <div
-                      onClick={() => setShowInvite(!showInvite)}
-                      className="w-9 h-9 rounded-full bg-ghost-surface-hover flex items-center justify-center text-ghost-text-muted hover:text-white hover:bg-ghost-purple cursor-pointer transition-all"
-                      style={{ border: '3px solid #0F0F18' }}
-                      title="Invite collaborator"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                    </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1 flex-wrap">
@@ -1163,9 +1629,17 @@ export default function PluginLayout() {
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-ghost-online-green animate-pulse" />
-                      <span className="text-[11px] text-ghost-text-muted">{members.length} collaborator{members.length !== 1 ? 's' : ''} online</span>
+                      <span className="text-[13px] text-ghost-text-muted">{members.length} collaborator{members.length !== 1 ? 's' : ''} online</span>
                     </div>
                   </div>
+
+                  <button
+                    onClick={() => setShowInvite(!showInvite)}
+                    className="shrink-0 px-4 py-1.5 text-[13px] font-bold bg-ghost-green text-black rounded-lg hover:bg-ghost-green/85 transition-colors shadow-[0_0_12px_rgba(0,255,200,0.25)]"
+                  >
+                    Invite
+                  </button>
+
                 </div>
                 </div>
 
@@ -1212,9 +1686,24 @@ export default function PluginLayout() {
 
               </div>
 
-              {/* Right panel: friends + chat */}
+              {/* Right panel: chat */}
               <div className="w-60 shrink-0 border-l border-ghost-border flex flex-col min-h-0 overflow-hidden">
-                <FriendsPanel friends={friends} />
+                <ChatPanel />
+              </div>
+            </>
+          ) : selectedPackId && selectedPack ? (
+            <>
+              <SamplePackContentView
+                pack={selectedPack}
+                onRenamePack={handleRenamePack}
+                onDeletePack={handleDeletePack}
+                onRemoveSample={handleRemoveSampleFromPack}
+                onRefresh={fetchPackDetail}
+                members={members}
+                onInvite={() => setShowInvite(true)}
+              />
+              {/* Right panel: chat */}
+              <div className="w-60 shrink-0 border-l border-ghost-border flex flex-col min-h-0 overflow-hidden">
                 <ChatPanel />
               </div>
             </>

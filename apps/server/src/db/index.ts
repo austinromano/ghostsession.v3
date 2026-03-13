@@ -118,6 +118,23 @@ export function initDatabase() {
       read INTEGER DEFAULT 0,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS sample_packs (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      owner_id TEXT NOT NULL REFERENCES users(id),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sample_pack_items (
+      id TEXT PRIMARY KEY,
+      pack_id TEXT NOT NULL REFERENCES sample_packs(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      file_id TEXT REFERENCES files(id) ON DELETE CASCADE,
+      position INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
   `);
   // Migrations for existing databases
   try { sqlite.exec(`ALTER TABLE projects ADD COLUMN genre TEXT DEFAULT ''`); } catch {}

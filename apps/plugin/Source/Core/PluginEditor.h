@@ -5,7 +5,8 @@
 #include "../UI/GhostWebView.h"
 
 //==============================================================================
-class GhostSessionEditor : public juce::AudioProcessorEditor
+class GhostSessionEditor : public juce::AudioProcessorEditor,
+                           public juce::DragAndDropContainer
 {
 public:
     explicit GhostSessionEditor(GhostSessionProcessor&);

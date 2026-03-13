@@ -23,6 +23,14 @@ GhostSessionEditor::GhostSessionEditor(GhostSessionProcessor& p)
 
 GhostSessionEditor::~GhostSessionEditor()
 {
+    // Remove the WebView from the component hierarchy first,
+    // then destroy it. This ensures no pending async callbacks
+    // can reference a half-destroyed component tree.
+    if (webView)
+    {
+        removeChildComponent(webView.get());
+        webView->setVisible(false);
+    }
     webView = nullptr;
 }
 

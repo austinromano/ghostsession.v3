@@ -101,4 +101,15 @@ export const api = {
   // Direct file download URL (local storage) — includes token for drag-to-desktop
   getDirectDownloadUrl: (projectId: string, fileId: string) =>
     `${BASE_URL}/projects/${projectId}/files/${fileId}/download${authToken ? `?token=${authToken}` : ''}`,
+
+  // Sample Packs
+  listSamplePacks: () => request<any[]>('GET', '/sample-packs'),
+  createSamplePack: (data: { name: string }) => request<any>('POST', '/sample-packs', data),
+  getSamplePack: (id: string) => request<any>('GET', `/sample-packs/${id}`),
+  updateSamplePack: (id: string, data: { name?: string }) => request<any>('PATCH', `/sample-packs/${id}`, data),
+  deleteSamplePack: (id: string) => request<void>('DELETE', `/sample-packs/${id}`),
+  addSamplePackItem: (packId: string, data: { name: string; fileId?: string }) =>
+    request<any>('POST', `/sample-packs/${packId}/items`, data),
+  removeSamplePackItem: (packId: string, itemId: string) =>
+    request<void>('DELETE', `/sample-packs/${packId}/items/${itemId}`),
 };

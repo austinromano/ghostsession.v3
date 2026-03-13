@@ -57,8 +57,25 @@ void GhostWebView::handleDragToDaw(const juce::String& urlString)
     if (localFile.existsAsFile())
     {
         GhostLog::write("[WebView] Starting native drag: " + localFile.getFullPathName());
-        juce::DragAndDropContainer::performExternalDragDropOfFiles(
-            { localFile.getFullPathName() }, false, this);
+
+        // Defer the drag to the message thread to avoid deadlock/crash
+        // when called from WebView's pageAboutToLoad callback.
+        // Use SafePointer so we don't crash if plugin is deleted before this fires.
+        auto filePath = localFile.getFullPathName();
+        auto safeThis = juce::Component::SafePointer<GhostWebView>(this);
+
+        juce::MessageManager::callAsync([filePath, safeThis]()
+        {
+            if (safeThis == nullptr)
+            {
+                GhostLog::write("[WebView] Plugin destroyed before drag could start");
+                return;
+            }
+
+            GhostLog::write("[WebView] Executing native drag on message thread");
+            juce::DragAndDropContainer::performExternalDragDropOfFiles(
+                { filePath }, false, safeThis.getComponent());
+        });
     }
     else
     {

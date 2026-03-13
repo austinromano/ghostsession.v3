@@ -110,6 +110,23 @@ export const trackLikes = sqliteTable('track_likes', {
   pk: primaryKey({ columns: [table.trackId, table.userId] }),
 }));
 
+export const samplePacks = sqliteTable('sample_packs', {
+  id: uuid().primaryKey(),
+  name: text('name').notNull(),
+  ownerId: text('owner_id').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull(),
+  updatedAt: timestamp('updated_at').notNull(),
+});
+
+export const samplePackItems = sqliteTable('sample_pack_items', {
+  id: uuid().primaryKey(),
+  packId: text('pack_id').notNull().references(() => samplePacks.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  fileId: text('file_id').references(() => files.id, { onDelete: 'cascade' }),
+  position: integer('position').default(0),
+  createdAt: timestamp('created_at').notNull(),
+});
+
 export const notifications = sqliteTable('notifications', {
   id: uuid().primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
