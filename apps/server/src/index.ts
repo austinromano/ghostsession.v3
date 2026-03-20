@@ -50,10 +50,14 @@ app.route('/api/v1/tracks', likeRoutes);
 app.route('/api/v1/sample-packs', samplePackRoutes);
 app.route('/api/v1/notifications', notificationRoutes);
 
-// Serve the desktop app build for plugin WebView (production mode)
+// Serve the desktop app build for plugin WebView
 import { serveStatic } from '@hono/node-server/serve-static';
 app.use('/app/*', serveStatic({ root: '../desktop/dist', rewriteRequestPath: (p) => p.replace('/app', '') }));
 app.get('/app', serveStatic({ root: '../desktop/dist', path: '/index.html' }));
+
+// Also serve at root so the VST3 plugin can load from localhost:3000
+app.use('/assets/*', serveStatic({ root: '../desktop/dist' }));
+app.get('/', serveStatic({ root: '../desktop/dist', path: '/index.html' }));
 
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
